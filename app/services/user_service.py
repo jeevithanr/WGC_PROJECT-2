@@ -2,12 +2,9 @@ from flask import jsonify, request
 import uuid
 from botocore.exceptions import ClientError
 from app.models.user_model import user_table
-from app.utils.helpers import validate_user_data
+
 
 def add_user():
-    is_valid, error_message = validate_user_data(data)
-    if not is_valid:
-        return jsonify({'error': error_message}), 400
     
     data = request.get_json()
     id = str(uuid.uuid4())
