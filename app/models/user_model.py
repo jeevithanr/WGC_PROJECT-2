@@ -1,5 +1,5 @@
 import boto3
-from config import AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION, DYNAMODB_TABLE
+from config import AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION, USER_TABLE
 
 dynamodb = boto3.resource(
     'dynamodb',
@@ -26,7 +26,8 @@ def create_table_if_not_exists(table_name, key_schema, attribute_definitions):
 
 # User Table
 user_table = create_table_if_not_exists(
-    DYNAMODB_TABLE,
+    USER_TABLE,
     [{'AttributeName': 'id', 'KeyType': 'HASH'}],
     [{'AttributeName': 'id', 'AttributeType': 'S'}]
 )
+
