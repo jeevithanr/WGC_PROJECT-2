@@ -4,9 +4,8 @@ from botocore.exceptions import ClientError
 from app.models.user_model import user_table
 
 
-def add_user():
+def add_user(data):
     
-    data = request.get_json()
     id = str(uuid.uuid4())
     firstname = data.get('firstname')
     lastname = data.get('lastname')

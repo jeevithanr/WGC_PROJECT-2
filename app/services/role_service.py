@@ -8,7 +8,7 @@ def create_role(data):
     role_details = {
         'roleId': role_id,
         'roleName': data.get('roleName'),
-        'enabled': data.get('enabled', True),  # Default to True
+        'enabled': data.get('enabled', True),
         'createdDate': datetime.utcnow().isoformat(),
         'updatedDate': '',
         'deletedDate': ''
