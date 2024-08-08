@@ -1,5 +1,6 @@
 from flask import jsonify, request, g
 import uuid
+from passlib.context import CryptContext
 from botocore.exceptions import ClientError
 from app.models.user_model import user_table
 from app.models.role_model import role_table
@@ -7,8 +8,9 @@ from datetime import datetime
 
 DEFAULT_STUDENT_ROLE_ID = 'e43fd12a-8833-4f62-bbbf-29d6299d8a4f'
 
-def add_user(data):
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+def add_user(data):
     id = str(uuid.uuid4())
     firstname = data.get('firstname')
     lastname = data.get('lastname')
@@ -17,6 +19,7 @@ def add_user(data):
     country = data.get('country')
     timezone = data.get('timezone')
     roleId = data.get('roleId', DEFAULT_STUDENT_ROLE_ID)
+    password = data.get('password')
     
     createdBy = data.get('createdBy')
     if createdBy == "null": 
@@ -25,8 +28,10 @@ def add_user(data):
     if createdBy is None:
         createdBy = getattr(g, 'user_id', None)
 
-    if not (firstname and lastname and email and contactNo and country and timezone):
+    if not (firstname and lastname and email and contactNo and country and timezone and password):
         return jsonify({'error': 'Missing required fields'}), 400
+
+    hashed_password = pwd_context.hash(password)
 
     try:
         user_table.put_item(
@@ -39,6 +44,7 @@ def add_user(data):
                 'country': country,
                 'timezone': timezone,
                 'roleId': roleId,
+                'password': hashed_password,
                 'createdBy': createdBy,
                 'updatedBy': None,
                 'deletedBy': None,
@@ -50,6 +56,7 @@ def add_user(data):
         return jsonify({'message': 'User added successfully', 'id': id}), 201
     except ClientError as e:
         return jsonify({'error': str(e)}), 500
+
 
 def get_user(id):
     try:
@@ -156,7 +163,6 @@ def get_all_users():
             "count": len(items),
             "data": items
         }
-
         return jsonify(result), 200
     except ClientError as e:
         return jsonify({'error': str(e)}), 500

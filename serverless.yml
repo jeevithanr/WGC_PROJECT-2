@@ -23,8 +23,15 @@ plugins:
 
 custom:
   wsgi:
-    app: run.app 
+    app: run.app
     packRequirements: false
+
+resources:
+  Resources:
+    S3Bucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: wgc-student-bucket
 
 package:
   exclude:

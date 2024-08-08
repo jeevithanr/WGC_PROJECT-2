@@ -1,9 +1,13 @@
 import uuid
+import boto3
+from flask import jsonify, request
 from app.models.student_model import student_table
 from app.models.user_model import user_table
-from flask import jsonify
 
-def add_student(data):
+s3 = boto3.client('s3')
+S3_BUCKET = 'wgc-student-bucket'
+
+def add_student(data, files):
     user_id = data.get('userId')
     student_id = str(uuid.uuid4())
     student_details = {
@@ -28,12 +32,18 @@ def add_student(data):
         'PostalCode': data.get('PostalCode'),
         'LanguagesSpoken': data.get('LanguagesSpoken'),
         'EmergencyContactName': data.get('EmergencyContactName'),
-        'EmergencyContactNumber': data.get('EmergencyContactNumber'),
-        'PhotoURL': data.get('PhotoURL')
+        'EmergencyContactNumber': data.get('EmergencyContactNumber')
     }
     
     try:
-        # Retrieve basic details from the User Table
+
+        if 'PhotoURL' in files:
+            photo_file = files['PhotoURL']
+            photo_filename = f"{student_id}/{photo_file.filename}"
+            s3.upload_fileobj(photo_file, S3_BUCKET, photo_filename)
+            photo_url = f"https://{S3_BUCKET}.s3.amazonaws.com/{photo_filename}"
+            student_details['PhotoURL'] = photo_url
+
         response = user_table.get_item(Key={'id': user_id})
         user_details = response.get('Item')
 
@@ -47,7 +57,6 @@ def add_student(data):
                 'TimeZone': user_details.get('timezone'),
             }
 
-            # Merge basic details with student-specific details
             full_details = {**student_details, **user_details_mapped}
             full_details['studentId'] = student_id
 
@@ -58,6 +67,7 @@ def add_student(data):
             return jsonify({'error': 'User not found'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 def get_student(studentId):
     try:

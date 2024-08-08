@@ -4,8 +4,9 @@ from app.services.student_service import add_student, get_student, get_all_stude
 def init_student_routes(app):
     @app.route('/add_student', methods=['POST'])
     def add_student_route():
-        data = request.get_json()
-        return add_student(data)
+        data = request.form
+        files = request.files
+        return add_student(data, files)
     
     @app.route('/get_student/<string:studentId>', methods=['GET'])
     def get_student_route(studentId):
