@@ -2,5 +2,8 @@
   "dependencies": {
     "serverless-python-requirements": "^6.1.0",
     "serverless-wsgi": "^3.0.4"
+  },
+  "devDependencies": {
+    "serverless-plugin-scripts": "^1.0.2"
   }
 }

@@ -1,7 +1,7 @@
 from app.utils.dynamodb_utils import create_table_if_not_exists
 from config import ROLE_TABLE
 
-# Student Table
+# Role Table
 role_table = create_table_if_not_exists(
     ROLE_TABLE,
     [{'AttributeName': 'roleId', 'KeyType': 'HASH'}],

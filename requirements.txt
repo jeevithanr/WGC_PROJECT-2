@@ -3,3 +3,4 @@ boto3
 flask-cors
 serverless-wsgi
 passlib
+PyJWT
