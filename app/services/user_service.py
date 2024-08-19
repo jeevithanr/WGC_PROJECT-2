@@ -166,3 +166,29 @@ def get_all_users():
         return jsonify(result), 200
     except ClientError as e:
         return jsonify({'error': str(e)}), 500
+    
+def get_user_id_by_email(email):
+    response = user_table.scan(
+        FilterExpression='email = :email',
+        ExpressionAttributeValues={':email': email}
+    )
+    items = response.get('Items')
+    if items:
+        return items[0].get('id')
+    return None
+
+def update_password(email, new_password):
+    user_id = get_user_id_by_email(email)
+    if not user_id:
+        return {'error': 'User not found'}
+
+    hashed_password = pwd_context.hash(new_password)
+    try:
+        user_table.update_item(
+            Key={'id': user_id},  # Use 'id' as the key attribute
+            UpdateExpression='SET password = :password',
+            ExpressionAttributeValues={':password': hashed_password}
+        )
+        return {'message': 'Password updated successfully'}
+    except Exception as e:
+        return {'error': str(e)}
