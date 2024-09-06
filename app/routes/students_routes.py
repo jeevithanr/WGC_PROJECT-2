@@ -4,9 +4,8 @@ from app.services.student_service import add_student, get_student, get_all_stude
 def init_student_routes(app):
     @app.route('/add_student', methods=['POST'])
     def add_student_route():
-        data = request.form
-        files = request.files
-        return add_student(data, files)
+        data = request.json
+        return add_student(data)
     
     @app.route('/get_student/<string:studentId>', methods=['GET'])
     def get_student_route(studentId):
@@ -18,9 +17,9 @@ def init_student_routes(app):
     
     @app.route('/update_student/<string:studentId>', methods=['PUT'])
     def update_student_route(studentId):
-        data = request.get_json()
+        data = request.json
         return update_student(studentId, data)
-    
+        
     @app.route('/delete_student/<string:studentId>', methods=['DELETE'])
     def delete_student_route(studentId):
         return delete_student(studentId)
