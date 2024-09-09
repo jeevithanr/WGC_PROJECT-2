@@ -13,25 +13,27 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def add_user(data):
     id = str(uuid.uuid4())
-    firstname = data.get('firstname')
-    lastname = data.get('lastname')
-    email = data.get('email')
-    contactNo = data.get('contactNo')
-    country = data.get('country')
-    timezone = data.get('timezone')
-    roleId = data.get('roleId', DEFAULT_STUDENT_ROLE_ID)
-    password = data.get('password')
+    firstname = data['firstname']
+    lastname = data['lastname']
+    email = data['email']
+    contactNo = data['contactNo']
+    country = data['country']
+    timezone = data['timezone']
+    roleId = data['roleId'] if 'roleId' in data else DEFAULT_STUDENT_ROLE_ID
+    password = data['password']
     
-    createdBy = data.get('createdBy')
+    createdBy = data['createdBy'] if 'createdBy' in data else None
     if createdBy == "null": 
         createdBy = None
 
     if createdBy is None:
         createdBy = getattr(g, 'user_id', None)
 
-    if not (firstname and lastname and email and contactNo and country and timezone and password):
+    # Ensure all required fields are present
+    if not all([firstname, lastname, email, contactNo, country, timezone, password]):
         return jsonify({'error': 'Missing required fields'}), 400
 
+    # Hash the password
     hashed_password = pwd_context.hash(password)
 
     try:
@@ -60,7 +62,6 @@ def add_user(data):
     except ClientError as e:
         return jsonify({'error': str(e)}), 500
 
-
 def get_user(id):
     try:
         response = user_table.get_item(Key={'id': id})
@@ -75,8 +76,8 @@ def get_user(id):
                 role = role_response.get('Item')
                 if role:
                     item['role'] = {
-                        'id': role.get('roleId'),
-                        'name': role.get('roleName')
+                        'id': role['roleId'],
+                        'name': role['roleName']
                     }
                 else:
                     item['role'] = {'id': role_id, 'name': 'Unknown'}
@@ -90,10 +91,7 @@ def get_user(id):
         return jsonify({'error': str(e)}), 500
 
 def update_user(id, data):
-    user_id = data.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'User ID is required to update the record'}), 400
-
+    user_id = data['user_id']
     update_expression = "SET "
     expression_attribute_values = {}
     
@@ -120,10 +118,7 @@ def update_user(id, data):
 
 def delete_user(id):
     data = request.get_json()
-    deletedBy = data.get('user_id')
-
-    if not deletedBy:
-        return jsonify({'error': 'User ID is required'}), 400
+    deletedBy = data['user_id']
 
     try:
         user_table.update_item(
@@ -151,8 +146,8 @@ def get_all_users():
                     role = role_response.get('Item')
                     if role:
                         item['role'] = {
-                            'id': role.get('roleId'),
-                            'name': role.get('roleName')
+                            'id': role['roleId'],
+                            'name': role['roleName']
                         }
                     else:
                         item['role'] = {'id': role_id, 'name': 'Unknown'}
@@ -177,7 +172,7 @@ def get_user_id_by_email(email):
     )
     items = response.get('Items')
     if items:
-        return items[0].get('id')
+        return items[0]['id']
     return None
 
 def update_password(email, new_password):
