@@ -5,6 +5,7 @@ from botocore.exceptions import ClientError
 from app.models.user_model import user_table
 from app.models.role_model import role_table
 from datetime import datetime
+from app.services.otp_service import create_otp_for_user, verify_otp
 
 DEFAULT_STUDENT_ROLE_ID = 'e43fd12a-8833-4f62-bbbf-29d6299d8a4f'
 
@@ -50,7 +51,9 @@ def add_user(data):
                 'deletedBy': None,
                 'createdDate': datetime.utcnow().isoformat(),
                 'updatedDate': None,
-                'deletedDate': None
+                'deletedDate': None,
+                'resetOTP': None,
+                'resetOTPExpiry': None
             }
         )
         return jsonify({'message': 'User added successfully', 'id': id}), 201
@@ -180,15 +183,29 @@ def get_user_id_by_email(email):
 def update_password(email, new_password):
     user_id = get_user_id_by_email(email)
     if not user_id:
-        return {'error': 'User not found'}
+        return jsonify({'error': 'User not found'}), 404
 
     hashed_password = pwd_context.hash(new_password)
     try:
         user_table.update_item(
-            Key={'id': user_id},  # Use 'id' as the key attribute
-            UpdateExpression='SET password = :password',
-            ExpressionAttributeValues={':password': hashed_password}
+            Key={'id': user_id},
+            UpdateExpression='SET password = :password, resetOTP = :otp, resetOTPExpiry = :expiry',
+            ExpressionAttributeValues={
+                ':password': hashed_password,
+                ':otp': None,
+                ':expiry': None
+            }
         )
-        return {'message': 'Password updated successfully'}
+        return jsonify({'message': 'Password updated successfully'}), 200
     except Exception as e:
-        return {'error': str(e)}
+        return jsonify({'error': str(e)}), 500
+
+def forgot_password(email):
+    return create_otp_for_user(email)
+
+def reset_password(email, otp, new_password):
+    verification_result, status_code = verify_otp(email, otp)
+    if status_code != 200:
+        return jsonify(verification_result), status_code
+
+    return update_password(email, new_password)

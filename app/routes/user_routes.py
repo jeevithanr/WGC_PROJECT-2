@@ -1,5 +1,5 @@
 from flask import request,jsonify,g
-from app.services.user_service import add_user, get_user, update_user, delete_user, get_all_users
+from app.services.user_service import add_user, get_user, update_user, delete_user, get_all_users, forgot_password, reset_password
 from app.utils.jwt_utils import token_required, role_required
 
 
@@ -27,6 +27,24 @@ def init_user_routes(app):
     @role_required('Admin')
     def get_all_users_route():
         return get_all_users()
+    
+    @app.route('/forgot-password', methods=['POST'])
+    def handle_forgot_password():
+        data = request.get_json()
+        email = data.get('email')
+        if not email:
+            return jsonify({'error': 'Email is required'}), 400
+        return forgot_password(email)
+
+    @app.route('/reset-password', methods=['POST'])
+    def handle_reset_password():
+        data = request.get_json()
+        email = data.get('email')
+        otp = data.get('otp')
+        new_password = data.get('new_password')
+        if not all([email, otp, new_password]):
+            return jsonify({'error': 'Email, OTP, and new password are required'}), 400
+        return reset_password(email, otp, new_password)
     
     @app.route('/some_protected_route', methods=['GET'])
     def some_protected_route():

@@ -1,48 +1,103 @@
 import random
 import string
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
-from app.utils.email_utils import send_otp_email
-from app.models.otp_model import otp_table
-from app.services.user_service import update_password,get_user_id_by_email
+from app.models.user_model import user_table
+from botocore.exceptions import ClientError
+from flask import jsonify
+from config import SMTP_SERVER, SMTP_PASSWORD, SMTP_PORT, SMTP_USERNAME
 
-def generate_otp(length=6):
-    digits = string.digits
-    otp = ''.join(random.choice(digits) for _ in range(length))
-    return otp
 
-def store_otp(email, otp):
-    expiration = datetime.utcnow() + timedelta(minutes=10)  # OTP valid for 10 minutes
-    otp_table.put_item(Item={
-        'email': email,
-        'otp': otp,
-        'expires_at': expiration.isoformat()
-    })
+def generate_otp():
+    return ''.join(random.choices(string.digits, k=6))
+
+def send_otp_email(email, otp):
+    subject = "Password Reset OTP"
+    body = f"Your OTP for password reset is: {otp}. This OTP will expire in 10 minutes."
+
+    message = MIMEMultipart()
+    message["From"] = SMTP_USERNAME
+    message["To"] = email
+    message["Subject"] = subject
+    message.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(message)
+        return True
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return False
+
+def create_otp_for_user(email):
+    try:
+        # Check if the user exists
+        response = user_table.scan(
+            FilterExpression='email = :email',
+            ExpressionAttributeValues={':email': email}
+        )
+        items = response.get('Items')
+        
+        if not items:
+            return jsonify({'error': 'User not found'}), 404
+
+        user = items[0]
+        user_id = user['id']
+
+        # Generate OTP
+        otp = generate_otp()
+
+        # Store the OTP in the user's record
+        user_table.update_item(
+            Key={'id': user_id},
+            UpdateExpression='SET resetOTP = :otp, resetOTPExpiry = :expiry',
+            ExpressionAttributeValues={
+                ':otp': otp,
+                ':expiry': (datetime.utcnow() + timedelta(minutes=10)).isoformat()  # OTP expires in 10 minutes
+            }
+        )
+
+        # Send the OTP email
+        if send_otp_email(email, otp):
+            return jsonify({'message': 'OTP sent successfully to your email'}), 200
+        else:
+            return jsonify({'error': 'Failed to send OTP email'}), 500
+
+    except ClientError as e:
+        return jsonify({'error': str(e)}), 500
 
 def verify_otp(email, otp):
-    response = otp_table.get_item(Key={'email': email})
-    otp_record = response.get('Item')
-    if not otp_record:
-        return False
-    if otp != otp_record['otp']:
-        return False
-    if datetime.utcnow() > datetime.fromisoformat(otp_record['expires_at']):
-        return False
-    return True
+    try:
+        # Find the user with the given email
+        response = user_table.scan(
+            FilterExpression='email = :email',
+            ExpressionAttributeValues={':email': email}
+        )
+        items = response.get('Items')
+        
+        if not items:
+            return jsonify({'error': 'User not found'}), 404
 
-def handle_otp_request(email):
-    user_id = get_user_id_by_email(email)
-    if not user_id:
-        return {'error': 'Email not registered'}, 404
+        user = items[0]
+        stored_otp = user.get('resetOTP')
+        otp_expiry = user.get('resetOTPExpiry')
 
-    otp = generate_otp()
-    store_otp(email, otp)
-    send_otp_email(email, otp)
-    return {'message': 'OTP sent to your email'}, 200
+        if not stored_otp or not otp_expiry:
+            return jsonify({'error': 'No OTP request found'}), 400
 
-def handle_password_reset(email, otp, new_password):
-    if not verify_otp(email, otp):
-        return {'error': 'Invalid or expired OTP'}, 400
+        # Check if OTP has expired
+        if datetime.utcnow() > datetime.fromisoformat(otp_expiry):
+            return jsonify({'error': 'OTP has expired'}), 400
 
-    update_password(email, new_password)
-    return {'message': 'Password reset successfully'}, 200
+        # Verify OTP
+        if otp != stored_otp:
+            return jsonify({'error': 'Invalid OTP'}), 400
 
+        return jsonify({'message': 'OTP verified successfully'}), 200
+
+    except ClientError as e:
+        return jsonify({'error': str(e)}), 500

@@ -25,7 +25,6 @@ def generate_presigned_url(object_name, expiration=3600):
 def add_student(data):
     user_id = data.get('userId')
     student_id = str(uuid.uuid4())
-
     student_details = {
         'CurrentSchoolOrCollege': data.get('CurrentSchoolOrCollege'),
         'Secondary': data.get('Secondary'),
@@ -139,7 +138,6 @@ def get_all_students():
 
 def update_student(studentId, data):
     try:
-        print("Received data for update:", data)  # Log received data
         response = student_table.get_item(Key={'studentId': studentId})
         if 'Item' not in response:
             return jsonify({'error': 'Student not found'}), 404
