@@ -3,23 +3,27 @@ from flask import request, jsonify, g
 from functools import wraps
 from datetime import datetime, timedelta
 from config import JWT_ALGORITHM, JWT_SECRET
+from app.services.role_permission_service import get_permissions_for_role
+from app.services.permissions_service import get_permission
+from app.services.role_service import get_role_by_user_id
 
-def encode_auth_token(user_id, role_name):
+def encode_auth_token(user_id):
+    #Generate JWT token.
     try:
-        print(f"Encoding JWT for user_id: {user_id}, role_name: {role_name}")
+        print(f"Encoding JWT for user_id: {user_id}")
         payload = {
             'exp': datetime.utcnow() + timedelta(days=1),
             'iat': datetime.utcnow(),
-            'sub': user_id,
-            'role': role_name
+            'sub': user_id
         }
         token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
-        return token.decode('utf-8') if isinstance(token, bytes) else token
+        return token
     except Exception as e:
         print(f"Error generating JWT Token: {str(e)}")
         return str(e)
 
 def decode_auth_token(token):
+    #Decode JWT token.
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return payload
@@ -29,6 +33,7 @@ def decode_auth_token(token):
         raise Exception('Invalid token')
 
 def token_required(f):
+    #Decorator to check for token in request headers.
     @wraps(f)
     def decorated_function(*args, **kwargs):
         auth_header = request.headers.get('Authorization')
@@ -44,37 +49,43 @@ def token_required(f):
             return jsonify({'error': str(e)}), 401
         
         g.user_id = decoded_token.get('sub')
-        g.user_role = decoded_token.get('role')
-
         return f(*args, **kwargs)
 
     return decorated_function
 
-def role_required(required_role):
-    def decorator(f):
-        @wraps(f)
+def permission_required(permission_name):
+    #Decorator to check if the user has the required permission.
+    def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             auth_header = request.headers.get('Authorization')
             if not auth_header:
-                return jsonify({'error': 'Authorization token is missing'}), 401
+                return jsonify({'message': 'Missing token'}), 403
 
             try:
                 token = auth_header.split(" ")[1]
                 decoded_token = decode_auth_token(token)
-                user_role = decoded_token.get('role')
-
-                if user_role != required_role:
-                    return jsonify({'error': 'Access denied'}), 403
-                
-                g.user_id = decoded_token.get('sub')
-                g.user_role = user_role
-                
-                return f(*args, **kwargs)
             except IndexError:
-                return jsonify({'error': 'Bearer token malformed!'}), 401
+                return jsonify({'message': 'Bearer token malformed'}), 403
             except Exception as e:
-                return jsonify({'error': str(e)}), 401
-        
+                return jsonify({'message': str(e)}), 403
+
+            user_id = decoded_token.get('sub')
+            if not user_id:
+                return jsonify({'message': 'Invalid token'}), 403
+
+            role_id = get_role_by_user_id(user_id)
+            if not role_id:
+                return jsonify({'message': 'User role not found'}), 403
+
+            permissions = get_permissions_for_role(role_id)
+            permission_ids = [perm['permissionId'] for perm in permissions]
+            permission_details = [get_permission(perm_id) for perm_id in permission_ids]
+            permission_names = [perm['name'] for perm in permission_details if 'name' in perm]
+
+            if permission_name not in permission_names:
+                return jsonify({'message': 'Permission denied'}), 403
+
+            return func(*args, **kwargs)
         return wrapper
     return decorator
-
