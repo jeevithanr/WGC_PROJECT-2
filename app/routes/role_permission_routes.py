@@ -1,5 +1,5 @@
 from flask import request, jsonify, g
-from app.services.role_permission_service import assign_permissions_to_role, get_permissions_for_role, remove_permission_from_role
+from app.services.role_permission_service import assign_permissions_to_role, get_permissions_for_role, remove_permission_from_role, get_permissions_for_user
 from app.utils.jwt_utils import token_required
 
 def init_role_permission_routes(app):
@@ -30,3 +30,8 @@ def init_role_permission_routes(app):
         if result:
             return jsonify({'message': 'Permission removed from role successfully'}), 200
         return jsonify({'error': 'Failed to remove permission from role'}), 500
+    
+    @app.route('/user-permissions/<user_id>', methods=['GET'])
+    def get_permissions_for_user_route(user_id):
+        result = get_permissions_for_user(user_id)
+        return jsonify(result), 200

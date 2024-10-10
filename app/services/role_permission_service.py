@@ -1,4 +1,5 @@
 from app.models.role_permission_model import role_permission_table
+from app.models.user_model import user_table
 from botocore.exceptions import ClientError
 import uuid
 
@@ -38,5 +39,24 @@ def remove_permission_from_role(role_permission_id):
     except ClientError as e:
         print(f"Error removing permission from role: {str(e)}")
         return None
-
     
+def get_permissions_for_user(user_id):
+    try:
+        # First, get the user's role ID
+        user_response = user_table.get_item(
+            Key={'id': user_id}
+        )
+        user = user_response.get('Item')
+        if not user:
+            return []
+        
+        role_id = user.get('roleId')
+        print(role_id)
+        if not role_id:
+            return []
+
+        # Then, get the permissions for that role
+        return get_permissions_for_role(role_id)
+    except ClientError as e:
+        print(f"Error getting permissions for user: {str(e)}")
+        return []

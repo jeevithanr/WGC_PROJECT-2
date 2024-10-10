@@ -27,9 +27,6 @@ custom:
     app: run.app
     packRequirements: false
 
-  pythonRequirements:
-    dockerizePip: true  
-
   scripts:
     hooks:
       "before:deploy:deploy": "python -c \"from run import create_app; create_app()\""
@@ -39,7 +36,7 @@ resources:
     S3Bucket:
       Type: AWS::S3::Bucket
       Properties:
-        BucketName: wgc-student-bucket-2
+        BucketName: wgc-student-bucket-4
 
 package:
   exclude:
