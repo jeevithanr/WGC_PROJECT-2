@@ -6,7 +6,7 @@ from app.routes.role_routes import init_role_routes
 from app.routes.auth_routes import init_auth_routes
 from app.routes.role_permission_routes import init_role_permission_routes
 from app.routes.permissions_routes import init_permissions_routes
-from app.routes.calendar_routes import calendar_init_routes
+from app.routes.document_entity_routes import  document_entity_init_routes
 
 
 def create_app():
@@ -18,5 +18,6 @@ def create_app():
     init_auth_routes(app)
     init_permissions_routes(app)
     init_role_permission_routes(app)
-    calendar_init_routes(app)
+    document_entity_init_routes(app)
+    
     return app
